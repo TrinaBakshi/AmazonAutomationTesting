@@ -1,3 +1,4 @@
 src/test/steps/productSteps.ts
 allure-report/**
 allure-results/**
+node_modules/
