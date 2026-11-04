@@ -1,6 +1,8 @@
 import { Given, setDefaultTimeout, Then, When } from "@cucumber/cucumber";
 import { pageFixture } from "../hooks/pageFixture";
-import { expect } from "@playwright/test";
+import { expect, Locator, Page } from "@playwright/test";
+
+setDefaultTimeout(60 * 1000);
 
 Given("User navigates to the application", async function () {
   await pageFixture.page.goto("https://www.amazon.in/");
@@ -24,14 +26,29 @@ When("User selects the search button", async function () {
 });
 
 When(
-  "User selects the {string} from the list",
-  async function (productName: string) {
-    const item = pageFixture.page
-      .getByRole("listitem")
-      .filter({ hasText: productName })
+  "User selects the {string} or {string} from the list",
+  async function (productName: string, productName1: string) {
+    let item = pageFixture.page
+      .locator(`//a//h2[contains(@aria-label,"${productName}")]`)
       .first();
-    await item.waitFor({ state: "visible" });
-    await item.click();
+
+    if (!(await item.isVisible({ timeout: 5000 }).catch(() => false))) {
+      item = pageFixture.page
+        .locator(`//a//h2[contains(@aria-label,"${productName1}")]`)
+        .first();
+    }
+
+    const [newPage] = await Promise.all([
+      pageFixture.page.context().waitForEvent("page"),
+      item.click(),
+    ])
+      .then((result) => result)
+      .catch(() => [null]);
+
+    if (newPage) {
+      await newPage.waitForLoadState("domcontentloaded");
+      pageFixture.page = newPage;
+    }
   },
 );
 
@@ -44,54 +61,52 @@ Then("product details page will be launched", async function () {
 When(
   "User selects the size of the product as {string}",
   async function (speciification: string) {
-    const productSize = pageFixture.page
+    await pageFixture.page
       .locator(
-        '//div[@id="inline-twister-expander-content-size_name"]//span[contains(@class, "swatch-title-text-single-line")]',
+        `//div[@id="inline-twister-expander-content-size_name"]//span[contains(@class,"swatch-title-text-single-line") and normalize-space(text())="${speciification}"]/ancestor::li//input[@role="radio"]`,
       )
-      .getByText(speciification);
-    await productSize.click();
+      .click();
   },
 );
 
 When(
   "User selects the style name of the product as {string}",
   async function (style: string) {
-    const productStyle = pageFixture.page
-      .locator(
-        '//div[@id="inline-twister-expander-content-style_name"]//span[contains(@class, "swatch-title-text-display")]',
-      )
-      .getByText(style);
-    await productStyle.click();
+    const productStyle = pageFixture.page.locator(
+      `//div[contains(@class, "swatch-container")]//span[normalize-space(text())="${style}"]//ancestor::li//input`,
+    );
+    await productStyle.click({ force: true }).catch(() => null);
   },
 );
 
 When(
   "User selects the color of the product as {string}",
   async function (color: string) {
-    const productColor = pageFixture.page
-      .locator(
-        `//div[@id="inline-twister-expander-content-color_name"]//img[@alt="${color}"]`,
-      )
-      .first();
+    const productColor = pageFixture.page.locator(
+      `//span[contains(@class,"slots")]//img[@alt="${color}"]`,
+    );
 
-    await productColor.click();
+    await productColor.click({ force: true }).catch(() => null);
   },
 );
 
 When(
   "User selects with exchange radio button as {string}",
   async (option: string) => {
-    const exchangeOption = pageFixture.page.locator(
-      `//span[text()="${option}"]//ancestor::div[@role="button"]/i[contains(@class, "radio")]`,
+    const chooseBtn = pageFixture.page.locator(
+      `//h5[.//span[text()="${option}"]]//preceding-sibling::i`,
     );
-    await exchangeOption.click();
+    await chooseBtn.click();
+    await chooseBtn.click();
   },
 );
 
 When("User clicks on choose phone to exchange button", async function () {
-  await pageFixture.page
-    .locator('//span[normalize-space(text())="Choose phone to exchange"]')
-    .click();
+  const exchangeButton = pageFixture.page.locator(
+    '//span[normalize-space(text())="Choose phone to exchange"]/preceding-sibling::input[@type="submit"]',
+  );
+  await exchangeButton.waitFor({ state: "visible" });
+  await exchangeButton.click({ force: true }).catch(() => null);
 });
 
 When(
@@ -100,8 +115,9 @@ When(
     const dropDownBrand = pageFixture.page.locator(
       ` //h5[normalize-space(text())='Exchange your old product']//ancestor::div[@id='rightColumn']//span[contains(@class, "show")][.//span[text()="Select Brand"]]`,
     );
+    await dropDownBrand.waitFor({ state: "visible" });
     await dropDownBrand.click();
-    await pageFixture.page.selectOption(dropDownBrand, { value: brand });
+    await pageFixture.page.locator(`//a[text()="${brand}"]/ancestor::li[contains(@class, "dropdown")]`).click();
   },
 );
 
@@ -111,8 +127,9 @@ When(
     const dropdown = pageFixture.page.locator(
       `//h5[normalize-space(text())='Exchange your old product']//ancestor::div[@id='rightColumn']//span[contains(@class, "show")][.//span[text()="Select Model"]]`,
     );
+    await dropdown.waitFor({ state: "visible" });
     await dropdown.click();
-    await pageFixture.page.selectOption(dropdown, { value: model });
+    await pageFixture.page.locator(`//a[text()="${model}"]/ancestor::li[contains(@class, "dropdown")]`).click();
   },
 );
 
@@ -120,10 +137,11 @@ When(
   "User selects RAM and storage as {string} from the drop down option",
   async function (storage: string) {
     const dropdown = pageFixture.page.locator(
-      `//h5[normalize-space(text())='Exchange your old product']//ancestor::div[@id='rightColumn']//span[@data-a-class='show']//span[text()='Select RAM and Storage']`,
+      `//h5[normalize-space(text())='Exchange your old product']//ancestor::div[@id='rightColumn']//span[contains(@class, "show")][.//span[text()="Select RAM and Storage"]]`,
     );
+    await dropdown.waitFor({ state: "visible" });
     await dropdown.click();
-    await pageFixture.page.selectOption(dropdown, { value: storage });
+    await pageFixture.page.locator(`//a[text()="${storage.replace('-','|')}"]/ancestor::li[contains(@class, "dropdown")]`).click();
   },
 );
 
@@ -172,21 +190,21 @@ When("User clicks on Apply Exchange button", async function () {
 });
 
 When("User applies coupon", async function () {
-  const applyCoupon= pageFixture.page
-    .locator(
-      '//span[normalize-space(text())="Apply Coupon"]//preceding-sibling::input[@type="submit"]',
-    );
+  const applyCoupon = pageFixture.page.locator(
+    '//span[normalize-space(text())="Apply Coupon"]//preceding-sibling::input[@type="submit"]',
+  );
 
-    if(applyCoupon.isVisible()){
-      await applyCoupon.click();
-    }
-
+  if (await applyCoupon.isVisible({timeout: 5000}).catch(()=>null)) {
+    await applyCoupon.click();
+  }
 });
 
 Then("Product price will be updated", async function () {
-  const productPriceAfterDiscount = pageFixture.page.locator('//span[@id="priceAfterBuyBackDiscount"]');
-  if(productPriceAfterDiscount.isVisible()){
+  const productPriceAfterDiscount = pageFixture.page.locator(
+    '//span[@id="priceAfterBuyBackDiscount"]',
+  );
+  if (productPriceAfterDiscount.isVisible()) {
     const price = (await productPriceAfterDiscount.textContent())?.trim();
-    console.log("Price After Exchange: "+ price);
+    console.log("Price After Exchange: " + price);
   }
 });

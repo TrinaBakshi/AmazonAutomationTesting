@@ -6,7 +6,7 @@ Feature: Get optimal price of a product
   Scenario: Update product price for with exchange
     When User types the desired "<product_name>" inside the search bar
     And  User selects the search button
-    And  User selects the "<product_name>" from the list
+    And  User selects the "<product_name>" or "<Product_Name>" from the list
     Then product details page will be launched
     When User selects the size of the product as "<Product_Specification>"
     And  User selects the style name of the product as "<EMI>"
@@ -25,5 +25,5 @@ Feature: Get optimal price of a product
     Then Product price will be updated
 
     Examples:
-      | product_name                | Product_Specification | EMI                                | Colour         | Exchange_Option | Exchange_Phone_Brand | Exchange_Phone_Model | Exchange_Phone_Storage | Exchange_Phone_Condition | Exchange_Phone_IMEI_number |
-      | samsung galaxy s25 ultra 5g | 12GB + 256GB          | with exchange bonus or No cost EMI | Titanium Black | With Exchange   | Oneplus              | Nord CE 5            | 8GB, 128 GB            | No damage                | 865597085984135            |
+      | product_name     | Product_Name     | Product_Specification | EMI                                | Colour         | Exchange_Option | Exchange_Phone_Brand | Exchange_Phone_Model | Exchange_Phone_Storage | Exchange_Phone_Condition | Exchange_Phone_IMEI_number |
+      | galaxy s25 ultra | Galaxy S25 Ultra | 12GB + 256GB          | With exchange bonus or No cost EMI | Titanium Black | With Exchange   | Oneplus              | Nord CE 5            | 8GB - 128GB            | No damage                | 865597085984135            |
