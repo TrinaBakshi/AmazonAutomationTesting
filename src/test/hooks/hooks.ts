@@ -1,20 +1,10 @@
-import { Before, After, BeforeAll, AfterAll } from "@cucumber/cucumber";
-import { chromium, Page, Browser } from "@playwright/test";
-import { pageFixture } from "./pageFixture"
+import { Before, After } from '@cucumber/cucumber';
+import { CustomWorld } from './world';
 
-let browser: Browser;
-let page: Page;
+Before(async function (this: CustomWorld) {
+  await this.init();
+});
 
-Before(async function () {
-    browser = await chromium.launch({headless: false, channel: "chrome"});
-    page = await browser.newPage();
-    pageFixture.page = page;
-})
-
-After(async function() {
-    await pageFixture.page.close();
-})
-
-AfterAll(async function () {
-    await browser.close();
-})
+After(async function (this: CustomWorld) {
+  await this.cleanup();
+});
